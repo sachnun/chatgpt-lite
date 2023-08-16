@@ -1,7 +1,7 @@
 import openai
 import logging
-import time
-import os
+import asyncio
+import os, time
 
 logging.basicConfig(level=logging.INFO)
 
@@ -50,7 +50,7 @@ async def load_history(event: Message, limit=3) -> list:
     return history
 
 
-async def generate(event: Message):
+async def generate(messages: list) -> str:
     """
     Generates a response using OpenAI's GPT-3.5-turbo model based on the user's input message.
 
@@ -61,18 +61,14 @@ async def generate(event: Message):
         str: The generated response from the GPT-3.5-turbo model.
     """
     response = await openai.ChatCompletion.acreate(
-        model="gpt-3.5-turbo",
-        messages=[
-            *await load_history(event),
-            {"role": "user", "content": event.text},
-        ],
-        stream=True,
+        model="gpt-3.5-turbo", messages=messages, stream=True
     )
     async for message in response:
         yield message["choices"][0]["delta"].get("content", "")
 
 
-AFTER_RESPONSE = """
+RESPONSE_TEMPLATE = """
+{response}
 
 **Time taken: {time:.2f}s**
 **Token usage: {tokens} / 4096**
@@ -82,10 +78,15 @@ AFTER_RESPONSE = """
 async def chat_stream(event: Message):
     start_time = time.time()
     max_delay = 0.5 if event.is_private else 1.5
+    memory = [
+        *await load_history(event),
+        {"role": "user", "content": event.text},
+    ]
     async with bot.action(event.chat_id, "typing"):
         full_message, reply, delay = "", None, time.time()
-        async for message in generate(event):
+        async for message in generate(memory):
             full_message += message
+
             try:
                 if not reply:
                     reply: Message = await event.reply(message)
@@ -96,11 +97,16 @@ async def chat_stream(event: Message):
                         delay = time.time()
             except errors.rpcerrorlist.MessageNotModifiedError:
                 pass
+            except errors.rpcerrorlist.FloodWaitError as e:
+                await asyncio.sleep(e.seconds)
+                await reply.edit(full_message, link_preview=False)
+                delay = time.time()
 
         await reply.edit(
-            full_message
-            + AFTER_RESPONSE.format(
-                time=time.time() - start_time, tokens=count_tokens(full_message)
+            RESPONSE_TEMPLATE.format(
+                response=full_message,
+                time=time.time() - start_time,
+                tokens=count_tokens(full_message) + count_tokens(memory),
             ),
             link_preview=True,
         )
