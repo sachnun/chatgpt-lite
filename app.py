@@ -61,7 +61,7 @@ async def generate(messages: list) -> str:
         str: The generated response from the GPT-3.5-turbo model.
     """
     response = await openai.ChatCompletion.acreate(
-        model="gpt-3.5-turbo", messages=messages, stream=True
+        model="gpt-3.5-turbo", messages=messages, stream=True, temperature=0, top_p=0
     )
     async for message in response:
         yield message["choices"][0]["delta"].get("content", "")
