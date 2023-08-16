@@ -3,9 +3,11 @@ import logging
 import asyncio
 import os, time
 
+import helpers.template as template
+
 logging.basicConfig(level=logging.INFO)
 
-from telethon import TelegramClient, events, errors
+from telethon import TelegramClient, events, errors, Button
 from telethon.tl.custom.message import Message
 
 from dotenv import load_dotenv
@@ -74,8 +76,23 @@ RESPONSE_TEMPLATE = """
 **Token usage: {tokens} / 4096**
 """
 
+CHANNEL_ID = os.getenv("CHANNEL_ID")
+
+
+async def check_has_subscribe(id):
+    users = await bot.get_participants(CHANNEL_ID)
+    return any(user.id == id for user in users)
+
 
 async def chat_stream(event: Message):
+    verify = await check_has_subscribe(event.sender_id)
+    if not verify:
+        link = f"https://t.me/{CHANNEL_ID}"
+        return await event.reply(
+            f"Please subscribe to the channel first. {template.hide_link(link)}",
+            buttons=[(Button.url("Subscribe", link))],
+        )
+
     start_time = time.time()
     max_delay = 0.5 if event.is_private else 1.5
     memory = [
