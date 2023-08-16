@@ -9,6 +9,7 @@ from telethon import TelegramClient, events, errors
 from telethon.tl.custom.message import Message
 
 from dotenv import load_dotenv
+from helpers.tiktoken import count_tokens
 
 load_dotenv()
 
@@ -71,7 +72,15 @@ async def generate(event: Message):
         yield message["choices"][0]["delta"].get("content", "")
 
 
+AFTER_RESPONSE = """
+
+**Time taken: {time:.2f}s**
+**Token usage: {tokens} / 4096**
+"""
+
+
 async def chat_stream(event: Message):
+    start_time = time.time()
     max_delay = 0.5 if event.is_private else 1.5
     async with bot.action(event.chat_id, "typing"):
         full_message, reply, delay = "", None, time.time()
@@ -79,27 +88,34 @@ async def chat_stream(event: Message):
             full_message += message
             try:
                 if not reply:
-                    reply = await event.reply(message)
+                    reply: Message = await event.reply(message)
                     continue
                 if "\n" in message:
                     if time.time() - delay > max_delay:
-                        await reply.edit(full_message)
+                        await reply.edit(full_message, link_preview=False)
                         delay = time.time()
             except errors.rpcerrorlist.MessageNotModifiedError:
                 pass
 
-        await reply.edit(full_message)
+        await reply.edit(
+            full_message
+            + AFTER_RESPONSE.format(
+                time=time.time() - start_time, tokens=count_tokens(full_message)
+            ),
+            link_preview=True,
+        )
 
 
 # start command
 @bot.on(events.NewMessage(pattern="/start"))
 async def start(event: Message):
-    await chat_stream("Hello!")
+    event.text = "Hello!"
+    await chat_stream(event)
     raise events.StopPropagation
 
 
 # private chat text message
-@bot.on(events.NewMessage(func=lambda e: e.is_private))
+@bot.on(events.NewMessage(func=lambda e: e.is_private, incoming=True))
 async def echo(event: Message):
     if event.text:
         await chat_stream(event)
