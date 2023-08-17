@@ -16,8 +16,19 @@ load_dotenv()
 
 from gptcache import cache
 from gptcache.adapter import openai
+from gptcache.embedding import Onnx
+from gptcache.manager import CacheBase, VectorBase, get_data_manager
+from gptcache.similarity_evaluation.distance import SearchDistanceEvaluation
 
-cache.init()
+onnx = Onnx()
+data_manager = get_data_manager(
+    CacheBase("sqlite"), VectorBase("faiss", dimension=onnx.dimension)
+)
+cache.init(
+    embedding_func=onnx.to_embeddings,
+    data_manager=data_manager,
+    similarity_evaluation=SearchDistanceEvaluation(),
+)
 cache.set_openai_key()
 
 
