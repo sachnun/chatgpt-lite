@@ -187,6 +187,8 @@ pip-selfcheck.json
 
 *.session
 *.session-journal
+*.db
+*.db-journal
 
 # GTP Cache
 data_map.txt

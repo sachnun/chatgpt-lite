@@ -33,6 +33,20 @@ cache.init(
 )
 cache.set_openai_key()
 
+import sqlite3
+
+conn = sqlite3.connect("database.db")
+c = conn.cursor()
+
+# tabel for storing messages id and chat id
+c.execute(
+    """CREATE TABLE IF NOT EXISTS messages (
+    id INTEGER PRIMARY KEY,
+    chat_id INTEGER NOT NULL,
+    message_id INTEGER NOT NULL
+)"""
+)
+
 
 bot = TelegramClient(
     session="bot", api_id=os.getenv("API_ID"), api_hash=os.getenv("API_HASH")
@@ -40,16 +54,6 @@ bot = TelegramClient(
 
 
 async def load_history(event: Message, limit=3) -> list:
-    """
-    Load the chat history for a given message up to a specified limit.
-
-    Args:
-        event (Message): The message to load the history for.
-        limit (int, optional): The maximum number of messages to load. Defaults to 6.
-
-    Returns:
-        list: A list of dictionaries representing the chat history, with each dictionary containing the 'role' (either 'user' or 'assistant') and 'content' of a message.
-    """
     history = []
     reply: Message = event
     while True:
@@ -72,15 +76,6 @@ import random
 
 
 async def generate(messages: list) -> str:
-    """
-    Generates a response using OpenAI's GPT-3.5-turbo model based on the user's input message.
-
-    Args:
-        event (Message): The user's input message.
-
-    Yields:
-        str: The generated response from the GPT-3.5-turbo model.
-    """
     response = await openai.ChatCompletion.acreate(
         model="gpt-3.5-turbo",
         messages=messages,
@@ -132,7 +127,8 @@ async def chat_stream(event: Message):
         {"role": "user", "content": event.text},
     ]
     async with bot.action(event.chat_id, "typing"):
-        full_message, reply, delay = "", None, time.time()
+        reply: Message = None
+        full_message, delay = "", time.time()
         async for message in generate(memory):
             full_message += message
 
@@ -156,6 +152,11 @@ async def chat_stream(event: Message):
             ),
             link_preview=True,
         )
+    # save message id and chat id
+    c.execute(
+        "INSERT INTO messages (chat_id, message_id) VALUES (?, ?)",
+        (event.chat_id, reply.id),
+    )
 
     await asyncio.sleep(5)
     await edit_message(full_message, link_preview=True)
@@ -173,6 +174,22 @@ async def start(event: Message):
 @bot.on(events.NewMessage(func=lambda e: e.is_private, incoming=True))
 async def echo(event: Message):
     if event.text:
+        # check if not reply to message
+        if not event.reply_to_msg_id:
+            # check last message in database
+            c.execute(
+                "SELECT * FROM messages WHERE chat_id = ? ORDER BY id DESC LIMIT 1",
+                (event.chat_id,),
+            )
+            last_message = c.fetchone()
+            if last_message:
+                # get message
+                last_message = await bot.get_messages(
+                    last_message[1], ids=last_message[2]
+                )
+                # set to reply
+                event.reply_to = last_message
+
         await chat_stream(event)
 
 
