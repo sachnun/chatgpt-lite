@@ -18,6 +18,7 @@ from gptcache import cache
 from gptcache.adapter import openai
 from gptcache.embedding import Onnx
 from gptcache.manager import CacheBase, VectorBase, get_data_manager
+from gptcache.processor.post import temperature_softmax
 from gptcache.similarity_evaluation.distance import SearchDistanceEvaluation
 
 onnx = Onnx()
@@ -28,6 +29,7 @@ cache.init(
     embedding_func=onnx.to_embeddings,
     data_manager=data_manager,
     similarity_evaluation=SearchDistanceEvaluation(),
+    post_process_messages_func=temperature_softmax,
 )
 cache.set_openai_key()
 

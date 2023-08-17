@@ -191,5 +191,6 @@ pip-selfcheck.json
 # GTP Cache
 data_map.txt
 sqlite.db
+faiss.index
 
 # End of https://www.toptal.com/developers/gitignore/api/python,venv
