@@ -1,6 +1,9 @@
 # python latest lite
 FROM python:3.8-slim-buster
 
+# install git
+RUN apt-get update && apt-get install -y git
+
 # set working directory
 WORKDIR /usr/src/app
 
