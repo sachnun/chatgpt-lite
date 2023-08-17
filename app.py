@@ -1,4 +1,3 @@
-import openai
 import logging
 import asyncio
 import os, time
@@ -15,12 +14,16 @@ from helpers.tiktoken import count_tokens
 
 load_dotenv()
 
+from gptcache import cache
+from gptcache.adapter import openai
+
+cache.init()
+cache.set_openai_key()
+
+
 bot = TelegramClient(
     session="bot", api_id=os.getenv("API_ID"), api_hash=os.getenv("API_HASH")
 ).start(bot_token=os.getenv("BOT_TOKEN"))
-
-openai.api_base = os.getenv("OPENAI_API_BASE")
-openai.api_key = os.getenv("OPENAI_API_KEY")
 
 
 async def load_history(event: Message, limit=3) -> list:

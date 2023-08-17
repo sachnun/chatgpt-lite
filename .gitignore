@@ -188,4 +188,6 @@ pip-selfcheck.json
 *.session
 *.session-journal
 
+data_map.txt
+
 # End of https://www.toptal.com/developers/gitignore/api/python,venv
