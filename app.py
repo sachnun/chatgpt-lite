@@ -70,7 +70,6 @@ async def generate(messages: list) -> str:
 
 
 RESPONSE_TEMPLATE = """
-{response}
 
 **Time taken: {time:.2f}s**
 **Token usage: {tokens} / 4096**
@@ -84,6 +83,9 @@ async def check_has_subscribe(id):
     return any(user.id == id for user in users)
 
 
+import string
+
+
 async def chat_stream(event: Message):
     verify = await check_has_subscribe(event.sender_id)
     if not verify:
@@ -92,6 +94,13 @@ async def chat_stream(event: Message):
             f"Please subscribe to the channel first. {template.hide_link(link)}",
             buttons=[(Button.url("Subscribe", link))],
         )
+
+    async def edit_message(*args, **kwargs):
+        nonlocal reply
+        if reply:
+            await reply.edit(*args, **kwargs)
+        else:
+            reply = await event.reply(*args, **kwargs)
 
     start_time = time.time()
     max_delay = 0.5 if event.is_private else 1.5
@@ -105,12 +114,9 @@ async def chat_stream(event: Message):
             full_message += message
 
             try:
-                if not reply:
-                    reply: Message = await event.reply(message)
-                    continue
-                if "\n" in message:
-                    if time.time() - delay > max_delay:
-                        await reply.edit(full_message, link_preview=False)
+                if message in string.punctuation:
+                    if time.time() - delay > max_delay or not reply:
+                        await edit_message(full_message + " ●", link_preview=False)
                         delay = time.time()
             except errors.rpcerrorlist.MessageNotModifiedError:
                 pass
@@ -119,14 +125,17 @@ async def chat_stream(event: Message):
                 await reply.edit(full_message, link_preview=False)
                 delay = time.time()
 
-        await reply.edit(
-            RESPONSE_TEMPLATE.format(
-                response=full_message,
+        await edit_message(
+            full_message
+            + RESPONSE_TEMPLATE.format(
                 time=time.time() - start_time,
                 tokens=count_tokens(full_message) + count_tokens(memory),
             ),
             link_preview=True,
         )
+
+    await asyncio.sleep(5)
+    await edit_message(full_message, link_preview=True)
 
 
 # start command
