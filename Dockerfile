@@ -1,5 +1,5 @@
-# python latest lite
-FROM python:3.8-slim-buster
+# python latest
+FROM python:latest
 
 # install git
 RUN apt-get update && apt-get install -y git
