@@ -11,9 +11,11 @@ openai==0.27.8
 pyaes==1.6.1
 pyasn1==0.5.0
 python-dotenv==1.0.0
+regex==2023.8.8
 requests==2.31.0
 rsa==4.9
 Telethon==1.29.3
+tiktoken==0.4.0
 tqdm==4.66.1
 urllib3==2.0.4
 yarl==1.9.2
