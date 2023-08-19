@@ -1,37 +1,24 @@
-import logging
 import asyncio
-import os, time
+import logging
+import os
+import time
+
+import openai
 
 import helpers.template as template
 
 logging.basicConfig(level=logging.INFO)
 
-from telethon import TelegramClient, events, errors, Button
+from dotenv import load_dotenv
+from telethon import Button, TelegramClient, errors, events
 from telethon.tl.custom.message import Message
 
-from dotenv import load_dotenv
 from helpers.tiktoken import count_tokens
 
 load_dotenv()
 
-from gptcache import cache
-from gptcache.adapter import openai
-from gptcache.embedding import Onnx
-from gptcache.manager import CacheBase, VectorBase, get_data_manager
-from gptcache.processor.post import temperature_softmax
-from gptcache.similarity_evaluation.distance import SearchDistanceEvaluation
-
-onnx = Onnx()
-data_manager = get_data_manager(
-    CacheBase("sqlite"), VectorBase("faiss", dimension=onnx.dimension)
-)
-cache.init(
-    embedding_func=onnx.to_embeddings,
-    data_manager=data_manager,
-    similarity_evaluation=SearchDistanceEvaluation(),
-    post_process_messages_func=temperature_softmax,
-)
-cache.set_openai_key()
+openai.api_base = os.getenv("OPENAI_API_BASE")
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 import sqlite3
 
